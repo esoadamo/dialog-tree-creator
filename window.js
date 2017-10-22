@@ -1,5 +1,3 @@
-// FIXME: Top scrolling
-
 let div_dialog = document.querySelector('#dialogTree');
 let txt_code = document.createElement('textarea');
 
@@ -13,17 +11,17 @@ class Item {
     this.root = root; // the root is root of itself
     this.level = root == this ? 0 : (root.level + 1);
     this.index = listItems.length;
-    this.childs = new Array();
+    this.children = new Array();
     listItems.push(this);
     if (this != this.root)
-      this.root.childs.push(this);
+      this.root.children.push(this);
   }
 
   button_remove(repaint_now=true){
     if (this.root != this)
-      this.root.childs.splice(this.root.childs.indexOf(this), 1);
+      this.root.children.splice(this.root.children.indexOf(this), 1);
     listItems.splice(this.index, 1);
-    for (let item of this.childs)
+    for (let item of this.children)
       item.button_remove(false);
     repaint();
   }
@@ -117,7 +115,7 @@ class Option extends Item{
   getHtml() {
     let txt_title_id = 'title-' + this.index;
     let r = '<textarea id="'+ txt_title_id +'" onchange="listItems[' + this.index.toString() + '].title=document.getElementById(\'' + txt_title_id +'\').value;repaint();" style="text-align: center;">' + this.title + '</textarea>';
-    if (this.childs.length == 0)
+    if (this.children.length == 0)
       r +=  '<div class="buttons"><button onclick="listItems[' + this.index.toString() + '].button_add();"><i class="fa fa-plus" aria-hidden="true">Add frame</i></button>';
     r +='<button onclick="listItems[' + this.index.toString() + '].button_remove();"><i class="fa fa-minus" aria-hidden="true">Delete</i></button></div>';
     return r;
@@ -153,11 +151,11 @@ function getJSON(){
     map[item.index]['title'] = item.title;
     map[item.index]['text'] = item.text;
     map[item.index]['options'] = [];
-    for (let option of item.childs){
+    for (let option of item.children){
       option_data = {}
       option_data['title'] = option.title;
-      if (option.childs.length > 0)
-        option_data['link'] = option.childs[0].index;
+      if (option.children.length > 0)
+        option_data['link'] = option.children[0].index;
       map[item.index]['options'].push(option_data);
     }
   }
