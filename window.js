@@ -6,9 +6,9 @@ listItems = new Array();
 class Item {
   constructor(root, title){
     this.title = title;
-    if (root == null)
+    if (root == null)  // the root is root of itself
       root = this;
-    this.root = root; // the root is root of itself
+    this.root = root;
     this.level = root == this ? 0 : (root.level + 1);
     this.index = listItems.length;
     this.children = new Array();
@@ -76,8 +76,6 @@ class Item {
       listRootsUpper = listRootsCurrent;
     }
 
-
-    // console.log(JSON.stringify(listItemsSorted));
     return listItemsSorted;
   }
 }
@@ -221,7 +219,6 @@ function repaint(){
 
     let scroll_left = (window.pageXOffset || document.documentElement.scrollLeft) - (document.documentElement.clientLeft || 0);
     let scroll_top = (window.pageYOffset || document.documentElement.scrollTop)  - (document.documentElement.clientTop || 0);
-    scroll_top = 0;
 
     createLine(child_offsets.left + (child_offsets.width / 2) + scroll_left, (child_offsets.top * 1.1) + scroll_top, parent_offsets.left + (parent_offsets.width / 2) + scroll_left, parent_offsets.top + (parent_offsets.height * 0.9) + scroll_top);
   }

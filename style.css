@@ -2,10 +2,6 @@
   box-sizing: border-box;
 }
 
-body {
-
-}
-
 .buttons {
   display: flex;
 }
@@ -48,10 +44,6 @@ textarea:first-child {
   flex-direction: column;
   width: 50px;
   padding: 5px;
-}
-
-canvas {
-  position: absolute;
 }
 
 div.line{
