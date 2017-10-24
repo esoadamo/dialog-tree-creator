@@ -1,6 +1,14 @@
 let div_dialog = document.querySelector('#dialogTree');
 let txt_code = document.createElement('textarea');
 
+/*
+Mouse modes:
+GENERAL - does nothing special
+LINK - on click on some frame creates a link from selected option
+*/
+let mouse_mode = "GENERAL";
+let mouse_data = null;  // global data related to the mouse_mode
+
 listItems = new Array();
 
 class Item {
@@ -24,6 +32,13 @@ class Item {
     for (let item of this.children)
       item.button_remove(false);
     repaint();
+  }
+
+  click(){
+    /*
+    This event is called every time user clicks on some item.
+    By default it does nothing, but you can override it.
+    */
   }
 
   static getItemsSorted(){
@@ -99,6 +114,16 @@ class Frame extends Item {
     return r;
   }
 
+  click(){
+    if (mouse_mode == "LINK") {
+      mouse_mode = "GENERAL";
+      let new_root = mouse_data;
+      mouse_data = null;
+      new_root.children.push(this.item);
+      repaint();
+    }
+  }
+
   button_add() {
     new Option(this, 'New option');
     repaint();
@@ -113,8 +138,14 @@ class Option extends Item{
   getHtml() {
     let txt_title_id = 'title-' + this.index;
     let r = '<textarea id="'+ txt_title_id +'" onchange="listItems[' + this.index.toString() + '].title=document.getElementById(\'' + txt_title_id +'\').value;repaint();" style="text-align: center;">' + this.title + '</textarea>';
-    if (this.children.length == 0)
+
+    // When option does not have any linked Frame, allow user to create new link
+    if (this.children.length == 0) {
       r +=  '<div class="buttons"><button onclick="listItems[' + this.index.toString() + '].button_add();"><i class="fa fa-plus" aria-hidden="true">Add frame</i></button>';
+      r +=  '<div class="buttons"><button onclick="listItems[' + this.index.toString() + '].button_link();"><i class="fa fa-plus" aria-hidden="true">Link</i></button>';
+    }
+
+    // Delete button
     r +='<button onclick="listItems[' + this.index.toString() + '].button_remove();"><i class="fa fa-minus" aria-hidden="true">Delete</i></button></div>';
     return r;
   }
@@ -122,6 +153,11 @@ class Option extends Item{
   button_add() {
     new Frame(this, 'New frame', '');
     repaint();
+  }
+
+  button_link(){
+    mouse_mode = "LINK";
+    mouse_data = this;
   }
 }
 
@@ -199,6 +235,9 @@ function repaint(){
       unit.className  = "unit";
       row.appendChild(unit);
       if (item != null) {
+        unit.id = 'item-' + item.index;
+        unit.item = item;
+        unit.onclick = unit.addEventListener("click", item.click);
         unit.className += " filled";
         dictUnits[item.index] = unit;
         unit.innerHTML = item.getHtml();
@@ -209,18 +248,21 @@ function repaint(){
   /*
   Paint line between child and parent
   */
+  let scroll_left = (window.pageXOffset || document.documentElement.scrollLeft) - (document.documentElement.clientLeft || 0);
+  let scroll_top = (window.pageYOffset || document.documentElement.scrollTop)  - (document.documentElement.clientTop || 0);
   for (let item of listItems){
-    if (!(item.index in dictUnits) || !(item.root.index in dictUnits) || (item == item.root))
+    if (!(item.index in dictUnits))
      continue;
-    let child = dictUnits[item.index];
-    let child_offsets = child.getBoundingClientRect();
-    let parent =  dictUnits[item.root.index];
+    let parent = dictUnits[item.index];
     let parent_offsets = parent.getBoundingClientRect();
+    for (let child_item of item.children){
+      if (!(child_item.index in dictUnits))
+        continue;
+      let child = dictUnits[child_item.index];
+      let child_offsets = child.getBoundingClientRect();
 
-    let scroll_left = (window.pageXOffset || document.documentElement.scrollLeft) - (document.documentElement.clientLeft || 0);
-    let scroll_top = (window.pageYOffset || document.documentElement.scrollTop)  - (document.documentElement.clientTop || 0);
-
-    createLine(child_offsets.left + (child_offsets.width / 2) + scroll_left, (child_offsets.top * 1.1) + scroll_top, parent_offsets.left + (parent_offsets.width / 2) + scroll_left, parent_offsets.top + (parent_offsets.height * 0.9) + scroll_top);
+      createLine(child_offsets.left + (child_offsets.width / 2) + scroll_left, (child_offsets.top * 1.1) + scroll_top, parent_offsets.left + (parent_offsets.width / 2) + scroll_left, parent_offsets.top + (parent_offsets.height * 0.9) + scroll_top);
+    }
   }
 
   txt_code.value = getJSON();
