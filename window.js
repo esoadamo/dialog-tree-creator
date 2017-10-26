@@ -9,10 +9,21 @@ LINK - on click on some frame creates a link from selected option
 let mouse_mode = "GENERAL";
 let mouse_data = null;  // global data related to the mouse_mode
 
+// Mouse position variables
+let mouse_x = 0;
+let mouse_y = 0;
+
 listItems = new Array();
 
 class Item {
+  /*
+  The parent of the Frame and Option
+  */
+
   constructor(root, title){
+    /*
+    Creates a item, sets its root
+    */
     this.title = title;
     if (root == null)  // the root is root of itself
       root = this;
@@ -25,13 +36,27 @@ class Item {
       this.root.children.push(this);
   }
 
-  button_remove(repaint_now=true){
-    if (this.root != this)
-      this.root.children.splice(this.root.children.indexOf(this), 1);
-    listItems.splice(this.index, 1);
+  button_remove(caller=true){
+    /*
+    Removes an Item from the dialog tree
+    Removes all orphaned childs as well.
+    :param caller: if not true, the item may not be removed, but moved under another root
+    */
+    if (this.root == this)  // Do not remove the root frame
+      return;
+    if (!caller) {  // Not forced to remove. Check if this item can be moved under another root
+      for (let item of listItems)
+        if (item.children.indexOf(this) !== -1) { // Ok, move this frame under another root
+          this.root = item;
+          return;
+        }
+    }
+    this.root.children.splice(this.root.children.indexOf(this), 1);
+    listItems.splice(listItems.indexOf(this), 1);
     for (let item of this.children)
       item.button_remove(false);
-    repaint();
+    if (caller)
+      repaint();
   }
 
   click(){
@@ -97,12 +122,20 @@ class Item {
 
 
 class Frame extends Item {
+  /*
+  Frame is an Item representing one monologue in the dialog.
+  Frames can have unlimited child Options.
+  */
+
   constructor (root, title, text){
     super(root, title);
     this.text = text;
   }
 
-  getHtml() {
+  getHTML() {
+    /*
+    Retuns HTML code representation of this object
+    */
     let txt_title_id = 'title-' + this.index;
     let txt_text_id = 'text-' + this.index;
     let r = '<textarea id="'+ txt_title_id +'" onchange="listItems[' + this.index.toString() + '].title=document.getElementById(\'' + txt_title_id +'\').value;repaint();">' + this.title + '</textarea>' +
@@ -115,6 +148,11 @@ class Frame extends Item {
   }
 
   click(){
+    /*
+    Called when user clicks on this Frame
+    If current mouse mode is LINK then a link will be created from the Option that
+    is held inside the mouse_data variable
+    */
     if (mouse_mode == "LINK") {
       mouse_mode = "GENERAL";
       let new_root = mouse_data;
@@ -125,17 +163,25 @@ class Frame extends Item {
   }
 
   button_add() {
+    /*
+    This function is called when user presses the Link button on the Option
+    Adds new child Option
+    */
     new Option(this, 'New option');
     repaint();
   }
 }
 
 class Option extends Item{
-  constructor(root, title) {
-    super(root, title);
-  }
+  /*
+  Option is and Item, which represents user choice in dialog.
+  It can be linked to up to one Frame
+  */
 
-  getHtml() {
+  getHTML() {
+    /*
+    Retuns HTML code representation of this object
+    */
     let txt_title_id = 'title-' + this.index;
     let r = '<textarea id="'+ txt_title_id +'" onchange="listItems[' + this.index.toString() + '].title=document.getElementById(\'' + txt_title_id +'\').value;repaint();" style="text-align: center;">' + this.title + '</textarea>';
 
@@ -151,17 +197,46 @@ class Option extends Item{
   }
 
   button_add() {
+    /*
+    This function is called when user presses the Link button on the Option
+    Adds new child Frame
+    */
     new Frame(this, 'New frame', '');
     repaint();
   }
 
   button_link(){
+    /*
+    This function is called when user presses the Link button on the Option
+    Sets mouse mode to LINK, mouse data to this Option and starts drawing newly created line
+    */
     mouse_mode = "LINK";
     mouse_data = this;
+    function draw_link_creation(){
+      /*
+      Draws a line from this option to the mouse position.
+      Auto-loops while mouse_mode == LINK
+      */
+      const line_id = "link_draw_to_mouse";
+      const line = document.getElementById(line_id);
+      if (line !== null)  // if link already exists, remove it so it can be repainted
+        line.parentNode.removeChild(line);
+      if (mouse_mode != "LINK")  // as this function is runned in loop, abort it when we have successfuly created the link
+        return;
+      let scroll_left = (window.pageXOffset || document.documentElement.scrollLeft) - (document.documentElement.clientLeft || 0);
+      let scroll_top = (window.pageYOffset || document.documentElement.scrollTop)  - (document.documentElement.clientTop || 0);
+      let parent_offsets = document.getElementById('item-' + mouse_data.index.toString()).getBoundingClientRect();
+      createLine(parent_offsets.left + (parent_offsets.width / 2) + scroll_left, parent_offsets.top + (parent_offsets.height * 0.9) + scroll_top, mouse_x, mouse_y).id = line_id;
+      setTimeout(draw_link_creation, 100);
+    }
+    draw_link_creation();
   }
 }
 
 function createLine(x1,y1,x2,y2){
+  /*
+  Creates a DOM line from one point to another
+  */
   const length = Math.sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
   const angle  = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
   const transform = 'rotate('+angle+'deg)';
@@ -174,9 +249,13 @@ function createLine(x1,y1,x2,y2){
   line.style.transform = transform;
 
   div_dialog.appendChild(line);
+  return line;
 }
 
 function getJSON(){
+  /*
+  Gets JSON representation of current dialog tree
+  */
   let map = {};
   for (let item of listItems){
     if (item instanceof Option)
@@ -197,6 +276,9 @@ function getJSON(){
 }
 
 function parseJSON(json){
+  /*
+  Parses JSON back into the dialog tree
+  */
   let map = JSON.parse(json);
   listItems.length = 0;
 
@@ -240,7 +322,7 @@ function repaint(){
         unit.onclick = unit.addEventListener("click", item.click);
         unit.className += " filled";
         dictUnits[item.index] = unit;
-        unit.innerHTML = item.getHtml();
+        unit.innerHTML = item.getHTML();
       }
     }
   }
@@ -268,11 +350,42 @@ function repaint(){
   txt_code.value = getJSON();
 }
 
+function keypress(e){
+  /*
+  Handless keypresses
+  */
+  const key = e.keyCode ? e.keyCode : e.which;
+
+  switch(key){
+    case 27: // ESC
+      // Reset mouse mode to GENERAL
+      if (mouse_mode != "GENERAL") {
+        mouse_mode = "GENERAL";
+        mouse_data = null;
+      }
+      break;
+  }
+}
+
 window.onload = function(){
-  new Frame(null, 'Dialog title', 'Dialog text');  // Create root dialog
+   // Create root dialog
+  new Frame(null, 'Dialog title', 'Dialog text');
+
+  // Add live code production
   document.body.appendChild(document.createElement("br"));
   document.body.appendChild(txt_code);
   txt_code.style.width = "100%";
   txt_code.addEventListener('input',function(){parseJSON(txt_code.value);}, false);
+
+  // Track mouse position and keypresses
+  window.onkeyup = keypress;
+  function mouse_move(e){
+    mouse_x = e.pageX;
+    mouse_y = e.pageY;
+  }
+  document.addEventListener('mousemove', mouse_move, false);
+  document.addEventListener('mouseenter', mouse_move, false);
+
+  // Make first paint
   repaint();
 }
